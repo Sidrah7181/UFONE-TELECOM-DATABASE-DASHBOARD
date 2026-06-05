@@ -117,12 +117,11 @@ case "connection_log" -> loadLogs();
 
 private void loadUsers() {
     List<User> rows = userCRUD.getAll();
-    userIds.clear();
-    Object[][] data = new Object[rows.size()][5];
+    Object[][] data = new Object[rows.size()][6];
     for (int i = 0; i < rows.size(); i++) {
         User u = rows.get(i);
-        userIds.add(u.getUserId());
         data[i] = new Object[]{
+            u.getUserId(), // DB auto-generated ID - display only
             u.getFullName(),
             u.getDateBirth(),
             u.getRegDate(),
@@ -131,7 +130,7 @@ private void loadUsers() {
         };
     }
     dataTable.setModel(new javax.swing.table.DefaultTableModel(
-        data, new String[]{"Name", "Birth Date", "Reg Date", "Usage", "IsBlocked"}
+        data, new String[]{"ID", "Name", "Birth Date", "Reg Date", "Usage", "IsBlocked"}
     ));
 }
 
@@ -217,12 +216,12 @@ private void fillTowerForm(int row) {
 }
 
 private void fillUserForm(int row) {
-    ufName.setText(str(dataTable.getValueAt(row, 0))); // was 1, now 0
-    ufBirth.setText(str(dataTable.getValueAt(row, 1))); // was 2, now 1
-    String usage = str(dataTable.getValueAt(row, 3)); // was 3, still 3
+    ufName.setText(str(dataTable.getValueAt(row, 1))); // Column 1 = Name, skip col 0 ID
+    ufBirth.setText(str(dataTable.getValueAt(row, 2))); // Column 2 = Birth
+    String usage = str(dataTable.getValueAt(row, 4)); // Column 4 = Usage  
     ufHeavy.setSelected("Heavy".equals(usage));
-    String blocked = str(dataTable.getValueAt(row, 4)); // ADD THIS
-    ufBlocked.setSelected("Yes".equals(blocked)); // ADD THIS
+    String blocked = str(dataTable.getValueAt(row, 5)); // Column 5 = IsBlocked
+    ufBlocked.setSelected("Yes".equals(blocked));
 }
 
 private void fillLogForm(int row) {
@@ -331,7 +330,10 @@ boolean ok = false;
 switch (sel) {
 case "region" -> ok = regionCRUD.delete((int) dataTable.getValueAt(row, 0));
 case "tower" -> ok = towerCRUD.delete((int) dataTable.getValueAt(row, 0));
-case "user_account" -> ok = userCRUD.delete(userIds.get(row)); // CHANGED
+case "user_account" -> {
+    Object val = dataTable.getValueAt(row, 0);
+    ok = userCRUD.delete(((Number) val).intValue());
+}
 case "connection_log" -> {
     Object val = dataTable.getValueAt(row, 0);
     ok = logCRUD.delete(((Number) val).longValue());
@@ -386,12 +388,11 @@ return;
 }
 // ───────────────── USER (FIXED PROPERLY) ─────────────────
 case "user_account" -> {
-    int row1 = dataTable.getSelectedRow();
-    int id = userIds.get(row1); // CHANGED: was reading from table column 0 which is name now
-
+    int id = ((Number) dataTable.getValueAt(row, 0)).intValue(); // PK from table col 0
+    
     String name = ufName.getText().trim();
     String birth = ufBirth.getText().trim();
-
+    
     if (name.isEmpty()) {
         JOptionPane.showMessageDialog(
             this, "Name cannot be empty.", "Input Error", JOptionPane.ERROR_MESSAGE
@@ -408,15 +409,16 @@ case "user_account" -> {
             return;
         }
     }
-
+    
     ok = userCRUD.update(
         id,
         name,
-        birth, // ADDED
+        birth,
         ufHeavy.isSelected(),
-        ufBlocked.isSelected() // CHANGED: was hardcoded false
+        ufBlocked.isSelected()
     );
 }
+
 // ───────────────── CONNECTION LOG ─────────────────
 case "connection_log" -> {
 JOptionPane.showMessageDialog(
