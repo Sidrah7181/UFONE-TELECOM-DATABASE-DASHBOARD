@@ -117,11 +117,11 @@ case "connection_log" -> loadLogs();
 
 private void loadUsers() {
     List<User> rows = userCRUD.getAll();
-    userIds.clear(); // ADD THIS
+    userIds.clear();
     Object[][] data = new Object[rows.size()][5];
     for (int i = 0; i < rows.size(); i++) {
         User u = rows.get(i);
-        userIds.add(u.getUserId()); // ADD THIS
+        userIds.add(u.getUserId());
         data[i] = new Object[]{
             u.getFullName(),
             u.getDateBirth(),
@@ -130,34 +130,45 @@ private void loadUsers() {
             u.isBlocked()? "Yes" : "No"
         };
     }
-    TableBuilder.refreshData(dataTable, data);
-    updateColumns(new String[]{"Name", "Birth Date", "Reg Date", "Usage", "IsBlocked"});
+    dataTable.setModel(new javax.swing.table.DefaultTableModel(
+        data, new String[]{"Name", "Birth Date", "Reg Date", "Usage", "IsBlocked"}
+    ));
 }
 
 private void loadLogs() {
-List<ConnectionLog> rows = logCRUD.getAll();
-Object[][] data = new Object[rows.size()][5];
-for (int i = 0; i < rows.size(); i++) {
-ConnectionLog l = rows.get(i);
-data[i] = new Object[]{
-l.getLogId(), l.getUserId(), l.getTowerId(), l.getDataUsedMb(), l.getDurationMins()
-};
-}
-TableBuilder.refreshData(dataTable, data);
-updateColumns(new String[]{"Log ID", "User", "Tower", "Data", "Duration"});
+    List<ConnectionLog> rows = logCRUD.getAll();
+    Object[][] data = new Object[rows.size()][6];
+    for (int i = 0; i < rows.size(); i++) {
+        ConnectionLog l = rows.get(i);
+        data[i] = new Object[]{
+            l.getLogId(),
+            l.getUserId(),
+            l.getTowerId(),
+            l.getSignalStrength(),
+            l.getDataUsedMb(),
+            l.getDurationMins()
+        };
+    }
+    // CHANGED: Don't use TableBuilder.refreshData, set model directly
+    dataTable.setModel(new javax.swing.table.DefaultTableModel(
+        data,
+        new String[]{"Log ID", "User", "Tower", "Signal", "Data", "Duration"}
+    ));
 }
 
 private void loadRegions() {
-List<Region> rows = regionCRUD.getAll();
-Object[][] data = new Object[rows.size()][5];
-for (int i = 0; i < rows.size(); i++) {
-Region r = rows.get(i);
-data[i] = new Object[]{
-r.getRegionId(), r.getRegionName(), r.getNetworkMode(), r.getRegionType(), r.getStatus()
-};
-}
-TableBuilder.refreshData(dataTable, data);
-updateColumns(new String[]{"ID", "Name", "Mode", "Type", "Status"});
+    List<Region> rows = regionCRUD.getAll();
+    Object[][] data = new Object[rows.size()][5];
+    for (int i = 0; i < rows.size(); i++) {
+        Region r = rows.get(i);
+        data[i] = new Object[]{
+            r.getRegionId(), r.getRegionName(), r.getNetworkMode(),
+            r.getRegionType(), r.getStatus()
+        };
+    }
+    dataTable.setModel(new javax.swing.table.DefaultTableModel(
+        data, new String[]{"ID", "Name", "Mode", "Type", "Status"}
+    ));
 }
 
 private void loadTowers() {
@@ -183,10 +194,6 @@ private void loadTowers() {
     ));
 }
 
-private void updateColumns(String[] cols) {
-javax.swing.table.DefaultTableModel m = (javax.swing.table.DefaultTableModel) dataTable.getModel();
-m.setColumnIdentifiers(cols);
-}
 
 private void showForm() {
     formLayout.show(formPanel, (String) tableSelector.getSelectedItem());
@@ -219,12 +226,13 @@ private void fillUserForm(int row) {
 }
 
 private void fillLogForm(int row) {
-    lfUser.setText(str(dataTable.getValueAt(row, 1)));
-    lfTower.setText(str(dataTable.getValueAt(row, 2)));
-    lfSignal.setText(str(dataTable.getValueAt(row, 3)));
-    lfData.setText(str(dataTable.getValueAt(row, 4)));
+    lfUser.setText(str(dataTable.getValueAt(row, 1))); // User
+    lfTower.setText(str(dataTable.getValueAt(row, 2))); // Tower
+    lfSignal.setText(str(dataTable.getValueAt(row, 3))); // Signal
+    lfData.setText(str(dataTable.getValueAt(row, 4))); // Data
+    // Duration is column 5, but you don't have a text field for it in the form
+    // If you want to show it, add lfDuration field to buildLogForm()
 }
-
 private String str(Object o) {
     return o == null? "" : o.toString();
 }
@@ -324,7 +332,10 @@ switch (sel) {
 case "region" -> ok = regionCRUD.delete((int) dataTable.getValueAt(row, 0));
 case "tower" -> ok = towerCRUD.delete((int) dataTable.getValueAt(row, 0));
 case "user_account" -> ok = userCRUD.delete(userIds.get(row)); // CHANGED
-case "connection_log" -> ok = logCRUD.delete((long) dataTable.getValueAt(row, 0));
+case "connection_log" -> {
+    Object val = dataTable.getValueAt(row, 0);
+    ok = logCRUD.delete(((Number) val).longValue());
+}
 }
 if (ok) {
 loadTable();
