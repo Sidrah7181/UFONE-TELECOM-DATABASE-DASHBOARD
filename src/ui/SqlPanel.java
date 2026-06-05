@@ -7,6 +7,7 @@ import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.List;
 
 public class SqlPanel extends JPanel {
@@ -21,6 +22,7 @@ private final SqlRegionCRUD regionCRUD = new SqlRegionCRUD();
 private final SqlTowerCRUD towerCRUD = new SqlTowerCRUD();
 private final SqlUserCRUD userCRUD = new SqlUserCRUD();
 private final SqlConnectionLogCRUD logCRUD = new SqlConnectionLogCRUD();
+private List<Integer> userIds = new ArrayList<>(); // ADD THIS
 
 private JComboBox<String> tableSelector;
 private JTable dataTable;
@@ -55,8 +57,24 @@ topBar.add(btnUpdate);
 topBar.add(btnDelete);
 add(topBar, BorderLayout.NORTH);
 
+
 dataTable = TableBuilder.buildEmpty(new String[]{"ID", "A", "B", "C", "D"});
 add(TableBuilder.scrollWrap(dataTable), BorderLayout.CENTER);
+
+dataTable.getSelectionModel().addListSelectionListener(e -> {
+    if (!e.getValueIsAdjusting()) {
+        int row = dataTable.getSelectedRow();
+        if (row >= 0) {
+            String sel = (String) tableSelector.getSelectedItem();
+            switch (sel) {
+                case "region" -> fillRegionForm(row);
+                case "tower" -> fillTowerForm(row);
+                case "user_account" -> fillUserForm(row);
+                case "connection_log" -> fillLogForm(row);
+            }
+        }
+    }
+});
 
 // ─────────────────────────────────────────────
 // FORM PANEL (RESTORED EXACTLY FROM YOUR CODE)
@@ -98,16 +116,22 @@ case "connection_log" -> loadLogs();
 }
 
 private void loadUsers() {
-List<User> rows = userCRUD.getAll();
-Object[][] data = new Object[rows.size()][5];
-for (int i = 0; i < rows.size(); i++) {
-User u = rows.get(i);
-data[i] = new Object[]{
-u.getUserId(), u.getFullName(), u.getRegDate(), u.isHighUsageFlag()? "Heavy" : "Normal", u.isBlocked()? "BLOCKED" : "Active"
-};
-}
-TableBuilder.refreshData(dataTable, data);
-updateColumns(new String[]{ "ID", "Full Name", "Reg Date", "Usage", "Status" });
+    List<User> rows = userCRUD.getAll();
+    userIds.clear(); // ADD THIS
+    Object[][] data = new Object[rows.size()][5];
+    for (int i = 0; i < rows.size(); i++) {
+        User u = rows.get(i);
+        userIds.add(u.getUserId()); // ADD THIS
+        data[i] = new Object[]{
+            u.getFullName(),
+            u.getDateBirth(),
+            u.getRegDate(),
+            u.isHighUsageFlag()? "Heavy" : "Normal",
+            u.isBlocked()? "Yes" : "No"
+        };
+    }
+    TableBuilder.refreshData(dataTable, data);
+    updateColumns(new String[]{"Name", "Birth Date", "Reg Date", "Usage", "IsBlocked"});
 }
 
 private void loadLogs() {
@@ -137,16 +161,26 @@ updateColumns(new String[]{"ID", "Name", "Mode", "Type", "Status"});
 }
 
 private void loadTowers() {
-List<Tower> rows = towerCRUD.getAll();
-Object[][] data = new Object[rows.size()][5];
-for (int i = 0; i < rows.size(); i++) {
-Tower t = rows.get(i);
-data[i] = new Object[]{
-t.getTowerId(), t.getTowerType(), t.getRegionId(), t.getMaxCapacity(), t.getTowerStatus()
-};
-}
-TableBuilder.refreshData(dataTable, data);
-updateColumns(new String[]{"ID", "Type", "Region", "Capacity", "Status"});
+    List<Tower> rows = towerCRUD.getAll();
+    Object[][] data = new Object[rows.size()][7];
+
+    for (int i = 0; i < rows.size(); i++) {
+        Tower t = rows.get(i);
+        data[i] = new Object[]{
+                t.getTowerId(),
+                t.getRegionId(), // was column 2
+                t.getTowerType(), // was column 1 - swapped
+                t.getInstallDate(),
+                t.getMaxCapacity(),
+                t.getTowerLoc(),
+                t.getTowerStatus()
+        };
+    }
+
+    dataTable.setModel(new javax.swing.table.DefaultTableModel(
+            data,
+            new String[]{"ID", "Region ID", "Type", "Install Date", "Capacity", "Location", "Status"}
+    ));
 }
 
 private void updateColumns(String[] cols) {
@@ -155,7 +189,44 @@ m.setColumnIdentifiers(cols);
 }
 
 private void showForm() {
-formLayout.show(formPanel, (String) tableSelector.getSelectedItem());
+    formLayout.show(formPanel, (String) tableSelector.getSelectedItem());
+}
+
+// ADD THESE 5 METHODS HERE
+private void fillRegionForm(int row) {
+    rfName.setText(str(dataTable.getValueAt(row, 1)));
+    rfMode.setSelectedItem(str(dataTable.getValueAt(row, 2)));
+    rfType.setSelectedItem(str(dataTable.getValueAt(row, 3)));
+    rfStatus.setSelectedItem(str(dataTable.getValueAt(row, 4))); // ADD THIS
+}
+
+private void fillTowerForm(int row) {
+    tfRegId.setText(str(dataTable.getValueAt(row, 1)));
+    tfType.setSelectedItem(str(dataTable.getValueAt(row, 2)));
+    tfDate.setText(str(dataTable.getValueAt(row, 3)));
+    tfCap.setText(str(dataTable.getValueAt(row, 4)));
+    tfLoc.setText(str(dataTable.getValueAt(row, 5)));
+    tfStatus.setSelectedItem(str(dataTable.getValueAt(row, 6)));
+}
+
+private void fillUserForm(int row) {
+    ufName.setText(str(dataTable.getValueAt(row, 0))); // was 1, now 0
+    ufBirth.setText(str(dataTable.getValueAt(row, 1))); // was 2, now 1
+    String usage = str(dataTable.getValueAt(row, 3)); // was 3, still 3
+    ufHeavy.setSelected("Heavy".equals(usage));
+    String blocked = str(dataTable.getValueAt(row, 4)); // ADD THIS
+    ufBlocked.setSelected("Yes".equals(blocked)); // ADD THIS
+}
+
+private void fillLogForm(int row) {
+    lfUser.setText(str(dataTable.getValueAt(row, 1)));
+    lfTower.setText(str(dataTable.getValueAt(row, 2)));
+    lfSignal.setText(str(dataTable.getValueAt(row, 3)));
+    lfData.setText(str(dataTable.getValueAt(row, 4)));
+}
+
+private String str(Object o) {
+    return o == null? "" : o.toString();
 }
 
 // ───────────────────────── INSERT / DELETE ─────────────────────────
@@ -166,50 +237,50 @@ try {
 switch (sel) {
 // ───────────────── REGION ─────────────────
 case "region" -> {
-ok = regionCRUD.insert(
-rfName.getText().trim(), rfMode.getText().trim(), rfType.getText().trim()
-);
+    ok = regionCRUD.insert(
+        rfName.getText().trim(), 
+        (String) rfMode.getSelectedItem(), 
+        (String) rfType.getSelectedItem(),
+        (String) rfStatus.getSelectedItem() // ADDED THIS
+    );
 }
 // ───────────────── TOWER ─────────────────
 case "tower" -> {
 ok = towerCRUD.insert(
 Integer.parseInt(tfRegId.getText().trim()),
-tfType.getText().trim(),
+(String) tfType.getSelectedItem(),
 tfDate.getText().trim(),
 Integer.parseInt(tfCap.getText().trim()),
 tfLoc.getText().trim(),
-tfStatus.getText().trim()
+(String) tfStatus.getSelectedItem()
 );
 }
 // ───────────────── USER ─────────────────
 case "user_account" -> {
-String name = ufName.getText().trim();
-String birth = ufBirth.getText().trim();
-// validation
-if (name.isEmpty()) {
-JOptionPane.showMessageDialog(
-this, "Name cannot be empty.", "Input Error", JOptionPane.ERROR_MESSAGE
-);
-return;
-}
-// optional birth-date validation
-if (!birth.isEmpty()) {
-try {
-java.sql.Date.valueOf(birth); // YYYY-MM-DD
-} catch (IllegalArgumentException ex) {
-JOptionPane.showMessageDialog(
-this, "Birth date must be YYYY-MM-DD", "Date Format Error", JOptionPane.ERROR_MESSAGE
-);
-return;
-}
-}
-System.out.println("[DEBUG USER INSERT]");
-System.out.println("Name : " + name);
-System.out.println("Birth : " + birth);
-System.out.println("Heavy : " + ufHeavy.isSelected());
-ok = userCRUD.insert(
-name, birth, ufHeavy.isSelected()
-);
+    String name = ufName.getText().trim();
+    String birth = ufBirth.getText().trim();
+    if (name.isEmpty()) {
+        JOptionPane.showMessageDialog(
+            this, "Name cannot be empty.", "Input Error", JOptionPane.ERROR_MESSAGE
+        );
+        return;
+    }
+    if (!birth.isEmpty()) {
+        try {
+            java.sql.Date.valueOf(birth);
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(
+                this, "Birth date must be YYYY-MM-DD", "Date Format Error", JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+    }
+    ok = userCRUD.insert(
+        name,
+        birth,
+        ufHeavy.isSelected(),
+        ufBlocked.isSelected() // CHANGED: was missing
+    );
 }
 // ───────────────── CONNECTION LOG ─────────────────
 case "connection_log" -> {
@@ -252,7 +323,7 @@ boolean ok = false;
 switch (sel) {
 case "region" -> ok = regionCRUD.delete((int) dataTable.getValueAt(row, 0));
 case "tower" -> ok = towerCRUD.delete((int) dataTable.getValueAt(row, 0));
-case "user_account" -> ok = userCRUD.delete((int) dataTable.getValueAt(row, 0));
+case "user_account" -> ok = userCRUD.delete(userIds.get(row)); // CHANGED
 case "connection_log" -> ok = logCRUD.delete((long) dataTable.getValueAt(row, 0));
 }
 if (ok) {
@@ -273,15 +344,16 @@ return;
 boolean ok = false;
 try {
 switch (sel) {
-// ───────────────── REGION ─────────────────
+
 case "region" -> {
-int id = (int) dataTable.getValueAt(row, 0);
-ok = regionCRUD.update(
-id,
-rfName.getText().trim(),
-rfMode.getText().trim(),
-rfType.getText().trim()
-);
+    int id = (int) dataTable.getValueAt(row, 0);
+    ok = regionCRUD.update(
+        id,
+        rfName.getText().trim(),
+        (String) rfMode.getSelectedItem(),
+        (String) rfType.getSelectedItem(),
+        (String) rfStatus.getSelectedItem() // ADDED THIS
+    );
 }
 // ───────────────── TOWER ─────────────────
 case "tower" -> {
@@ -290,11 +362,11 @@ try {
 ok = towerCRUD.update(
 id,
 Integer.parseInt(tfRegId.getText().trim()),
-tfType.getText().trim(),
+(String) tfType.getSelectedItem(),
 tfDate.getText().trim(),
 Integer.parseInt(tfCap.getText().trim()),
 tfLoc.getText().trim(),
-tfStatus.getText().trim()
+(String) tfStatus.getSelectedItem()
 );
 } catch (NumberFormatException ex) {
 JOptionPane.showMessageDialog(this, "Region ID and Capacity must be numbers.");
@@ -303,15 +375,36 @@ return;
 }
 // ───────────────── USER (FIXED PROPERLY) ─────────────────
 case "user_account" -> {
-int id = (int) dataTable.getValueAt(row, 0);
-String name = ufName.getText().trim();
-String birth = ufBirth.getText().trim();
-ok = userCRUD.update(
-id,
-name.isEmpty()? null : name,
-ufHeavy.isSelected(),
-false
-);
+    int row1 = dataTable.getSelectedRow();
+    int id = userIds.get(row1); // CHANGED: was reading from table column 0 which is name now
+
+    String name = ufName.getText().trim();
+    String birth = ufBirth.getText().trim();
+
+    if (name.isEmpty()) {
+        JOptionPane.showMessageDialog(
+            this, "Name cannot be empty.", "Input Error", JOptionPane.ERROR_MESSAGE
+        );
+        return;
+    }
+    if (!birth.isEmpty()) {
+        try {
+            java.sql.Date.valueOf(birth);
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(
+                this, "Birth date must be YYYY-MM-DD", "Date Format Error", JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+    }
+
+    ok = userCRUD.update(
+        id,
+        name,
+        birth, // ADDED
+        ufHeavy.isSelected(),
+        ufBlocked.isSelected() // CHANGED: was hardcoded false
+    );
 }
 // ───────────────── CONNECTION LOG ─────────────────
 case "connection_log" -> {
@@ -334,48 +427,86 @@ JOptionPane.showMessageDialog(this, ex.getMessage(), "Update Error", JOptionPane
 }
 
 // ───────────────────────── FORMS (UNCHANGED RESTORED) ─────────────────────────
-private JTextField rfName, rfMode, rfType;
-private JTextField tfRegId, tfType, tfDate, tfCap, tfLoc, tfStatus;
+private JTextField rfName;
+private JComboBox<String> rfMode, rfType, rfStatus;
+
+private JTextField tfRegId, tfDate, tfCap, tfLoc;
+private JComboBox<String> tfType, tfStatus;
 private JTextField ufName, ufBirth;
-private JCheckBox ufHeavy;
+private JCheckBox ufHeavy, ufBlocked;
 private JTextField lfUser, lfTower, lfConn, lfDisc, lfSignal, lfData;
 
 private JPanel buildRegionForm() {
-JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
-rfName = addField(p, "Name:");
-rfMode = addField(p, "Mode:");
-rfType = addField(p, "Type:");
-return p;
+    JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
+    
+    p.add(new JLabel("Name:"));
+    rfName = new JTextField(10);
+    p.add(rfName);
+    
+    p.add(new JLabel("Mode:"));
+    rfMode = new JComboBox<>(new String[]{"2G", "3G", "4G", "5G", "4G/5G"});
+    p.add(rfMode);
+    
+    p.add(new JLabel("Type:"));
+    rfType = new JComboBox<>(new String[]{"Urban", "Rural", "Sub-urban"});
+    p.add(rfType);
+
+    // ADD THESE 3 LINES
+    p.add(new JLabel("Status:"));
+    rfStatus = new JComboBox<>(new String[]{"Active", "Inactive"});
+    p.add(rfStatus);
+    
+    return p;
 }
 
 private JPanel buildTowerForm() {
-JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
-tfRegId = addField(p, "Region ID:");
-tfType = addField(p, "Type:");
-tfDate = addField(p, "Date:");
-tfCap = addField(p, "Capacity:");
-tfLoc = addField(p, "Location:");
-tfStatus = addField(p, "Status:");
-return p;
+    JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
+    
+    p.add(new JLabel("Region ID:"));
+    tfRegId = new JTextField(6);
+    p.add(tfRegId);
+    
+    p.add(new JLabel("Type:"));
+    tfType = new JComboBox<>(new String[]{"2G", "3G", "4G", "5G"});
+    p.add(tfType);
+    
+    p.add(new JLabel("Date:"));
+    tfDate = new JTextField(10);
+    p.add(tfDate);
+    
+    p.add(new JLabel("Capacity:"));
+    tfCap = new JTextField(6);
+    p.add(tfCap);
+    
+    p.add(new JLabel("Location:"));
+    tfLoc = new JTextField(10);
+    p.add(tfLoc);
+    
+    p.add(new JLabel("Status:"));
+    tfStatus = new JComboBox<>(new String[]{"Active", "Inactive", "Maintenance"});
+    p.add(tfStatus);
+    
+    return p;
 }
-
 private JPanel buildUserForm() {
-JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
-ufName = addField(p, "Name:");
-ufBirth = addField(p, "Birth:");
-ufHeavy = new JCheckBox("Heavy?");
-p.add(ufHeavy);
-return p;
+    JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
+    ufName = addField(p, "Name:");
+    ufBirth = addField(p, "Birth (YYYY-MM-DD):");
+    ufHeavy = new JCheckBox("Heavy?");
+    p.add(ufHeavy);
+    ufBlocked = new JCheckBox("Blocked?"); // ADD THESE 2 LINES
+    p.add(ufBlocked);
+    return p;
 }
 
 private JPanel buildLogForm() {
 JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
-lfUser = addField(p, "User:");
-lfTower = addField(p, "Tower:");
-lfConn = addField(p, "Connect:");
-lfDisc = addField(p, "Disconnect:");
-lfSignal = addField(p, "Signal:");
-lfData = addField(p, "Data:");
+lfUser = addField(p, "User ID:");
+lfTower = addField(p, "Tower ID:");
+lfConn = addField(p, "Connect Time YYYY-MM-DD HH-MM-SS:");
+lfDisc = addField(p, "Disconnect Time YYYY-MM-DD HH-MM-SS:");
+lfSignal = addField(p, "Signal Strength:");
+lfData = addField(p, "Data Mb:");
 return p;
 }
 

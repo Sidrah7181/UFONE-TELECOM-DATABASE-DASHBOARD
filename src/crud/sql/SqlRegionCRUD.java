@@ -14,13 +14,14 @@ public class SqlRegionCRUD {
     // ─────────────────────────────────────────────
     public boolean insert(String regionName,
                           String networkMode,
-                          String regionType) {
+                          String regionType,
+                          String status) { // CHANGED: added status param
 
         String sql = """
             INSERT INTO region
-            (region_name, network_mode, region_type)
-            VALUES (?, CAST(? AS network_mode_type), ?)
-        """;
+            (region_name, network_mode, region_type, status)
+            VALUES (?, CAST(? AS network_mode_type),?,?)
+        """; // CHANGED: added status column and?
 
         try (Connection conn = PostgresConn.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -28,6 +29,7 @@ public class SqlRegionCRUD {
             ps.setString(1, regionName);
             ps.setString(2, networkMode); // MUST match ENUM
             ps.setString(3, regionType);
+            ps.setString(4, status); // ADDED
 
             int rows = ps.executeUpdate();
             System.out.println("[INSERT] Rows inserted: " + rows);
@@ -81,16 +83,18 @@ public class SqlRegionCRUD {
     public boolean update(int regionId,
                           String regionName,
                           String networkMode,
-                          String regionType) {
+                          String regionType,
+                          String status) { // CHANGED: added status param
 
         String sql = """
             UPDATE region
             SET
-                region_name = ?,
+                region_name =?,
                 network_mode = CAST(? AS network_mode_type),
-                region_type = ?
-            WHERE region_id = ?
-        """;
+                region_type =?,
+                status =?
+            WHERE region_id =?
+        """; // CHANGED: added status =?
 
         try (Connection conn = PostgresConn.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -98,7 +102,8 @@ public class SqlRegionCRUD {
             ps.setString(1, regionName);
             ps.setString(2, networkMode);
             ps.setString(3, regionType);
-            ps.setInt(4, regionId);
+            ps.setString(4, status); // ADDED
+            ps.setInt(5, regionId); // CHANGED: was 4, now 5
 
             int rows = ps.executeUpdate();
             System.out.println("[UPDATE] Rows updated: " + rows);
@@ -117,7 +122,7 @@ public class SqlRegionCRUD {
     // ─────────────────────────────────────────────
     public boolean delete(int regionId) {
 
-        String sql = "DELETE FROM region WHERE region_id = ?";
+        String sql = "DELETE FROM region WHERE region_id =?";
 
         try (Connection conn = PostgresConn.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
