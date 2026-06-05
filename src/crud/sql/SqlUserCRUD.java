@@ -71,26 +71,29 @@ public class SqlUserCRUD {
     // ─────────────────────────────────────────────
     public List<User> searchByName(String keyword) {
 
-        List<User> list = new ArrayList<>();
+    List<User> list = new ArrayList<>();
 
-        String sql = "SELECT * FROM user_account WHERE LOWER(full_name) LIKE?";
+    String sql =
+        "SELECT * FROM user_account " +
+        "WHERE LOWER(full_name) LIKE ?";
 
-        try (PreparedStatement ps = PostgresConn.getConnection().prepareStatement(sql)) {
+    try (PreparedStatement ps = PostgresConn.getConnection().prepareStatement(sql)) {
 
-            ps.setString(1, "%" + keyword.toLowerCase() + "%");
-            ResultSet rs = ps.executeQuery();
+        ps.setString(1, "%" + keyword.toLowerCase() + "%");
 
-            while (rs.next()) {
-                list.add(mapRow(rs));
-            }
+        ResultSet rs = ps.executeQuery();
 
-        } catch (SQLException e) {
-            System.err.println("[UserCRUD][SEARCH] " + e.getMessage());
+        while (rs.next()) {
+            list.add(mapRow(rs));
         }
 
-        return list;
+    } catch (SQLException e) {
+        System.err.println("[UserCRUD][SEARCH] " + e.getMessage());
+        e.printStackTrace();
     }
 
+    return list;
+}
     // ─────────────────────────────────────────────
     // UPDATE - ADDED dateBirth param
     // ─────────────────────────────────────────────

@@ -145,25 +145,38 @@ public class SqlTowerCRUD {
     }
 
     public List<Tower> searchByRegion(String keyword) {
+
     List<Tower> list = new ArrayList<>();
+
     String sql = """
         SELECT t.tower_id, t.region_id, t.tower_type, t.install_date,
                t.max_capacity, t.tower_loc, t.tower_status
         FROM tower t
         JOIN region r ON t.region_id = r.region_id
-        WHERE r.region_name ILIKE?
+        WHERE LOWER(r.region_name) LIKE LOWER(?)
+           OR LOWER(t.tower_type) LIKE LOWER(?)
+           OR LOWER(t.tower_loc) LIKE LOWER(?)
+           OR LOWER(t.tower_status) LIKE LOWER(?)
         ORDER BY t.tower_id
     """;
 
     try (Connection conn = PostgresConn.getConnection();
          PreparedStatement ps = conn.prepareStatement(sql)) {
 
-        ps.setString(1, "%" + keyword + "%");
+        String pattern = "%" + keyword + "%";
+
+        ps.setString(1, pattern);
+        ps.setString(2, pattern);
+        ps.setString(3, pattern);
+        ps.setString(4, pattern);
+
         ResultSet rs = ps.executeQuery();
 
         while (rs.next()) {
+
             Date d = rs.getDate("install_date");
-            String date = (d == null)? "" : d.toString();
+            String date = (d == null) ? "" : d.toString();
+
             list.add(new Tower(
                     rs.getInt("tower_id"),
                     rs.getInt("region_id"),
@@ -174,10 +187,12 @@ public class SqlTowerCRUD {
                     rs.getString("tower_status")
             ));
         }
+
     } catch (SQLException e) {
         System.err.println("[TowerCRUD][SEARCH BY REGION] " + e.getMessage());
         e.printStackTrace();
     }
+
     return list;
 }
 }

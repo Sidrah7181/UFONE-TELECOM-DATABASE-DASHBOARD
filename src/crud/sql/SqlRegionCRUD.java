@@ -141,33 +141,41 @@ public class SqlRegionCRUD {
     }
 
     public List<Region> searchByName(String keyword) {
+
     List<Region> list = new ArrayList<>();
-    String sql = """
-        SELECT region_id, region_name, network_mode, region_type, status
-        FROM region
-        WHERE region_name ILIKE?
-        ORDER BY region_id
-    """;
 
-    try (Connection conn = PostgresConn.getConnection();
-         PreparedStatement ps = conn.prepareStatement(sql)) {
+    String sql =
+        "SELECT * FROM region " +
+        "WHERE LOWER(TRIM(region_name)) LIKE LOWER(?) " +
+        "OR LOWER(TRIM(region_type)) LIKE LOWER(?) " +
+        "OR LOWER(TRIM(status)) LIKE LOWER(?)";
 
-        ps.setString(1, "%" + keyword + "%"); // ILIKE handles case
+    try (PreparedStatement ps = PostgresConn.getConnection().prepareStatement(sql)) {
+
+        String pattern = "%" + keyword.trim() + "%";
+
+        ps.setString(1, pattern);
+        ps.setString(2, pattern);
+        ps.setString(3, pattern);
+
         ResultSet rs = ps.executeQuery();
 
         while (rs.next()) {
-            list.add(new Region(
-                    rs.getInt("region_id"),
-                    rs.getString("region_name"),
-                    rs.getString("network_mode"),
-                    rs.getString("region_type"),
-                    rs.getString("status")
-            ));
+
+            Region r = new Region();
+            r.setRegionId(rs.getInt("region_id"));
+            r.setRegionName(rs.getString("region_name"));
+            r.setRegionType(rs.getString("region_type"));
+            r.setNetworkMode(rs.getString("network_mode"));
+            r.setStatus(rs.getString("status"));
+
+            list.add(r);
         }
-    } catch (SQLException e) {
-        System.err.println("[RegionCRUD][SEARCH] " + e.getMessage());
+
+    } catch (Exception e) {
         e.printStackTrace();
     }
+
     return list;
 }
 }

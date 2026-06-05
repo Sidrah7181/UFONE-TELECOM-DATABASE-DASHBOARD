@@ -56,17 +56,37 @@ public class MongoEventCRUD {
     }
 
     // ── READ (search by event_type) ───────────────────────────────────────────
-    public List<EventLog> searchByType(String keyword) {
-        List<EventLog> list = new ArrayList<>();
+   public List<EventLog> searchByType(String keyword) {
+
+    List<EventLog> list = new ArrayList<>();
+
+    try {
+
+        var filter = Filters.or(
+                Filters.regex("event_type", keyword, "i"),
+                Filters.regex("details", keyword, "i"),
+                Filters.regex("tower_id", keyword, "i"),
+                Filters.regex("user_id", keyword, "i"),
+                Filters.regex("timestamp", keyword, "i")
+        );
+
         try (MongoCursor<Document> cur = col()
-               .find(Filters.regex("event_type", keyword, "i"))
-               .limit(20).iterator()) {
-            while (cur.hasNext()) list.add(docToModel(cur.next()));
-        } catch (Exception e) {
-            System.err.println("[MongoEventCRUD] search error: " + e.getMessage());
+                .find(filter)
+                .limit(50)
+                .iterator()) {
+
+            while (cur.hasNext()) {
+                list.add(docToModel(cur.next()));
+            }
         }
-        return list;
+
+    } catch (Exception e) {
+        System.err.println("[MongoEventCRUD] search error: " + e.getMessage());
+        e.printStackTrace();
     }
+
+    return list;
+}
 
     // ── UPDATE (update details + event_type by _id) ────────────────────────────
     public boolean update(String id, String newDetails, String newEventType) {
@@ -95,6 +115,8 @@ public class MongoEventCRUD {
             return false;
         }
     }
+
+    
 
     // ── Helper ────────────────────────────────────────────────────────────────
     private EventLog docToModel(Document doc) {

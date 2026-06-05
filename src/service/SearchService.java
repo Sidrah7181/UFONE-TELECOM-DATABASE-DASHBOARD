@@ -56,43 +56,52 @@ public class SearchService {
      * Step 3: Combine into one list in memory.
      * Step 4: Return to UI.
      */
-    public List<SearchResult> search(String keyword) {
-        List<SearchResult> results = new ArrayList<>();
+  public List<SearchResult> search(String keyword) {
+    List<SearchResult> results = new ArrayList<>();
+    if (keyword == null || keyword.isBlank()) return results;
 
-        if (keyword == null || keyword.isBlank()) return results;
+    System.out.println("[SearchService] Searching for: '" + keyword + "'"); // debug
 
-        // ─── SQL QUERIES (independent) ────────────────────────────────────────
-        try {
-            List<User> users = sqlUserCRUD.searchByName(keyword);
-            for (User u : users)
-                results.add(new SearchResult("SQL", "User", u));
+    // ─── SQL QUERIES ────────────────────────────────────────
+    try {
+        List<User> users = sqlUserCRUD.searchByName(keyword);
+        System.out.println("[SearchService] SQL users returned: " + users.size()); // debug
+        for (User u : users)
+            results.add(new SearchResult("SQL", "User", u));
 
-            List<Tower> towers = sqlTowerCRUD.searchByRegion(keyword);
-            for (Tower t : towers)
-                results.add(new SearchResult("SQL", "Tower", t));
+        List<Tower> towers = sqlTowerCRUD.searchByRegion(keyword);
+        System.out.println("[SearchService] SQL towers returned: " + towers.size());
+        for (Tower t : towers)
+            results.add(new SearchResult("SQL", "Tower", t));
 
-            List<Region> regions = sqlRegionCRUD.searchByName(keyword);
-            for (Region r : regions)
-                results.add(new SearchResult("SQL", "Region", r));
+        List<Region> regions = sqlRegionCRUD.searchByName(keyword);
+        System.out.println("[SearchService] SQL regions returned: " + regions.size());
+        for (Region r : regions)
+            results.add(new SearchResult("SQL", "Region", r));
 
-        } catch (Exception e) {
-            System.err.println("[SearchService] SQL query error: " + e.getMessage());
-        }
-
-        // ─── MONGO QUERIES (independent) ─────────────────────────────────────
-        try {
-            List<EventLog> events = mongoEventCRUD.searchByType(keyword);
-            for (EventLog e : events)
-                results.add(new SearchResult("MONGO", "EventLog", e));
-
-            List<Anomaly> anomalies = mongoAnomalyCRUD.searchByRisk(keyword);
-            for (Anomaly a : anomalies)
-                results.add(new SearchResult("MONGO", "Anomaly", a));
-
-        } catch (Exception e) {
-            System.err.println("[SearchService] Mongo query error: " + e.getMessage());
-        }
-
-        return results;
+    } catch (Exception e) {
+        System.err.println("[SearchService] SQL query error: " + e.getMessage());
+        e.printStackTrace(); // this will show you the real error
     }
+
+    // ─── MONGO QUERIES ─────────────────────────────────────
+    try {
+        List<EventLog> events = mongoEventCRUD.searchByType(keyword);
+        System.out.println("[SearchService] Mongo events returned: " + events.size());
+        for (EventLog e : events)
+            results.add(new SearchResult("MONGO", "EventLog", e));
+
+        List<Anomaly> anomalies = mongoAnomalyCRUD.searchByRisk(keyword);
+        System.out.println("[SearchService] Mongo anomalies returned: " + anomalies.size());
+        for (Anomaly a : anomalies)
+            results.add(new SearchResult("MONGO", "Anomaly", a));
+
+    } catch (Exception e) {
+        System.err.println("[SearchService] Mongo query error: " + e.getMessage());
+        e.printStackTrace();
+    }
+
+    System.out.println("[SearchService] Total results: " + results.size());
+    return results;
+}
 }
